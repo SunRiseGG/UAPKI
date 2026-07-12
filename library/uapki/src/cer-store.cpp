@@ -523,6 +523,16 @@ int CerStore::removeMarkedCerts (void)
     return RET_OK;
 }
 
+void CerStore::addReference (
+        CerItem* item
+)
+{
+    lock_guard<mutex> lock(m_Mutex);
+    if (!item) return;
+    m_Items.push_back(item);
+    m_Borrowed.insert(item);
+}
+
 CerItem* CerStore::addItem (
         CerItem* item
 )
@@ -618,9 +628,13 @@ int CerStore::loadDir (void)
 void CerStore::reset (void)
 {
     for (auto& it : m_Items) {
-        delete it;
+        //  Borrowed items are owned by another store — reference only, never free here.
+        if (m_Borrowed.find(it) == m_Borrowed.end()) {
+            delete it;
+        }
     }
     m_Items.clear();
+    m_Borrowed.clear();
 }
 
 void CerStore::saveStatToLog (

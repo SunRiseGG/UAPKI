@@ -54,6 +54,26 @@ DIRECT_EXPORT int uapki_direct_add_trusted(
     }
 }
 
+// Reports how many certs live in the global store right now,
+// splitting out how many are trusted. Used to prove/measure the accumulation
+// of non-trusted envelope certs across verifications.
+DIRECT_EXPORT int uapki_direct_cert_count(size_t* out_total, size_t* out_trusted)
+{
+    try {
+        Cert::CerStore* cer_store = get_cerstore();
+        if (!cer_store) return RET_UAPKI_GENERAL_ERROR;
+        size_t total = 0, trusted = 0;
+        int ret = cer_store->getCount(total, trusted);
+        if (ret != RET_OK) return ret;
+        if (out_total) *out_total = total;
+        if (out_trusted) *out_trusted = trusted;
+        return RET_OK;
+    }
+    catch (...) {
+        return RET_UAPKI_GENERAL_ERROR;
+    }
+}
+
 // Shared core: content_hasher is already set up by the caller (detached —
 // filled with data/file; attached — empty, UAPKI takes it from the envelope).
 static int verify_core(
@@ -74,8 +94,29 @@ static int verify_core(
         ? Doc::Verify::VerifyOptions::ValidationType::CHAIN
         : Doc::Verify::VerifyOptions::ValidationType::STRUCT;
 
+    // Verification runs against a short-lived LOCAL cert store, so the certs
+    // pulled from the envelope (signer, intermediates, TSP) die with it — they
+    // never accumulate in the process-global store. The global store is used
+    // purely as a trusted-cert cache: the local store *borrows* its already-
+    // parsed trusted CerItems (no re-parsing, no ownership transfer). CerItem is
+    // internally mutex-guarded, so the same borrowed items are safe to share
+    // across concurrent verifications.
+    Cert::CerStore local_store;
+    {
+        Cert::CerStore* trusted = get_cerstore();
+        size_t n = 0;
+        if (trusted && trusted->getCount(n) == RET_OK) {
+            for (size_t i = 0; i < n; i++) {
+                Cert::CerItem* c = nullptr;
+                if (trusted->getCertByIndex(i, &c) == RET_OK) {
+                    local_store.addReference(c);
+                }
+            }
+        }
+    }
+
     Doc::Verify::VerifySignedDoc verify_sdoc(
-        get_config(), get_cerstore(), get_crlstore(), opts);
+        get_config(), &local_store, get_crlstore(), opts);
     int ret = RET_OK;
 
     do {

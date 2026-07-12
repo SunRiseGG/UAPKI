@@ -31,6 +31,8 @@
 
 #include "cer-item.h"
 
+#include <unordered_set>
+
 
 namespace UapkiNS {
 
@@ -42,6 +44,8 @@ class CerStore {
     std::string m_Path;
     std::vector<CerItem*>
                 m_Items;
+    std::unordered_set<CerItem*>
+                m_Borrowed; //  subset of m_Items owned by another store: findable, but not freed on reset
 
 public:
     CerStore (void);
@@ -80,6 +84,12 @@ public:
         const bool permanent,
         const VectorBA& vbaEncodedCerts,
         std::vector<AddedCerItem>& addedCerItems
+    );
+    //  Borrow an already-parsed CerItem owned by another store: it becomes
+    //  findable through every lookup here, but is NOT freed on reset/destruction.
+    //  Used to seed a short-lived per-verify store with cached trusted certs.
+    void addReference (
+        CerItem* cerItem
     );
     std::vector<CerItem*> getCerItems (
         const FilterListCerts& filter
