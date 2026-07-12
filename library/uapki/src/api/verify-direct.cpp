@@ -34,19 +34,24 @@ DIRECT_EXPORT int uapki_direct_add_trusted(
     const size_t* cert_lens,
     size_t cert_count)
 {
-    Cert::CerStore* cer_store = get_cerstore();
-    if (!cer_store) return RET_UAPKI_GENERAL_ERROR;
-    if (cert_count == 0) return RET_OK;
+    try {
+        Cert::CerStore* cer_store = get_cerstore();
+        if (!cer_store) return RET_UAPKI_GENERAL_ERROR;
+        if (cert_count == 0) return RET_OK;
 
-    VectorBA vba;
-    vba.resize(cert_count);
-    for (size_t i = 0; i < cert_count; i++) {
-        vba[i] = ba_alloc_from_uint8(certs[i], cert_lens[i]);
-        if (!vba[i]) return RET_UAPKI_GENERAL_ERROR;
+        VectorBA vba;
+        vba.resize(cert_count);
+        for (size_t i = 0; i < cert_count; i++) {
+            vba[i] = ba_alloc_from_uint8(certs[i], cert_lens[i]);
+            if (!vba[i]) return RET_UAPKI_GENERAL_ERROR;
+        }
+        std::vector<Cert::CerStore::AddedCerItem> added;
+        // VectorBA frees its ByteArrays in the destructor
+        return cer_store->addCerts(true /*trusted*/, false /*permanent*/, vba, added);
     }
-    std::vector<Cert::CerStore::AddedCerItem> added;
-    // VectorBA frees its ByteArrays in the destructor
-    return cer_store->addCerts(true /*trusted*/, false /*permanent*/, vba, added);
+    catch (...) {
+        return RET_UAPKI_GENERAL_ERROR;
+    }
 }
 
 // Shared core: content_hasher is already set up by the caller (detached —
@@ -145,13 +150,20 @@ DIRECT_EXPORT int uapki_direct_verify(
     int* out_signer_count,
     int* out_all_valid)
 {
-    ContentHasher content_hasher;
-    if (data && data_len) {
-        int ret = content_hasher.setContent(data, data_len);
-        if (ret != RET_OK) { *out_signer_count = 0; *out_all_valid = 0; return ret; }
+    *out_signer_count = 0;
+    *out_all_valid = 0;
+    try {
+        ContentHasher content_hasher;
+        if (data && data_len) {
+            int ret = content_hasher.setContent(data, data_len);
+            if (ret != RET_OK) return ret;
+        }
+        return verify_core(sig, sig_len, content_hasher, validation_type,
+                           out_signer_count, out_all_valid);
     }
-    return verify_core(sig, sig_len, content_hasher, validation_type,
-                       out_signer_count, out_all_valid);
+    catch (...) {
+        return RET_UAPKI_GENERAL_ERROR;
+    }
 }
 
 // Detached verification where the library reads and hashes the data from a
@@ -163,13 +175,20 @@ DIRECT_EXPORT int uapki_direct_verify_file(
     int* out_signer_count,
     int* out_all_valid)
 {
-    ContentHasher content_hasher;
-    if (data_path && data_path[0] != '\0') {
-        int ret = content_hasher.setContent(data_path);
-        if (ret != RET_OK) { *out_signer_count = 0; *out_all_valid = 0; return ret; }
+    *out_signer_count = 0;
+    *out_all_valid = 0;
+    try {
+        ContentHasher content_hasher;
+        if (data_path && data_path[0] != '\0') {
+            int ret = content_hasher.setContent(data_path);
+            if (ret != RET_OK) return ret;
+        }
+        return verify_core(sig, sig_len, content_hasher, validation_type,
+                           out_signer_count, out_all_valid);
     }
-    return verify_core(sig, sig_len, content_hasher, validation_type,
-                       out_signer_count, out_all_valid);
+    catch (...) {
+        return RET_UAPKI_GENERAL_ERROR;
+    }
 }
 
 } // extern "C"
