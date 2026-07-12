@@ -18,14 +18,23 @@ string(REGEX MATCH "Clang" CMAKE_COMPILER_IS_CLANG "${CMAKE_C_COMPILER_ID}")
 string(REGEX MATCH "GNU" CMAKE_COMPILER_IS_GNU "${CMAKE_C_COMPILER_ID}")
 string(REGEX MATCH "MSVC" CMAKE_COMPILER_IS_MSVC "${CMAKE_C_COMPILER_ID}")
 
+# LTO in a static archive stores toolchain-specific IR (e.g. GCC GIMPLE), which
+# a foreign linker consuming the archive (e.g. LLVM lld) can't resolve. Enable
+# LTO only for shared builds.
+if(DEFINED UAPKI_LIBS_TYPE AND UAPKI_LIBS_TYPE STREQUAL "STATIC")
+    set(UAPKI_LTO "")
+else()
+    set(UAPKI_LTO "-flto")
+endif()
+
 if(CMAKE_COMPILER_IS_CLANG)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wwrite-strings -Wpointer-arith -Wimplicit-fallthrough -Wshadow -Wvla -Wformat=2 -Wno-format-nonliteral")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wwrite-strings -Wpointer-arith -Wimplicit-fallthrough -Wshadow -Wvla -Wformat=2 -Wno-format-nonliteral")
     
-    set(CMAKE_C_FLAGS_RELEASE     "-O3 -fomit-frame-pointer -flto")
-    set(CMAKE_CXX_FLAGS_RELEASE   "-O3 -fomit-frame-pointer -flto")
-    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -flto")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE    "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -flto")
+    set(CMAKE_C_FLAGS_RELEASE     "-O3 -fomit-frame-pointer ${UAPKI_LTO}")
+    set(CMAKE_CXX_FLAGS_RELEASE   "-O3 -fomit-frame-pointer ${UAPKI_LTO}")
+    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} ${UAPKI_LTO}")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE    "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${UAPKI_LTO}")
 
     set(CMAKE_C_FLAGS_DEBUG       "-Og -g3")
     set(CMAKE_CXX_FLAGS_DEBUG     "-Og -g3")
@@ -65,10 +74,10 @@ if(CMAKE_COMPILER_IS_GNU)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat-overflow=2 -Wformat-truncation")
     endif()
     
-    set(CMAKE_C_FLAGS_RELEASE     "-O3 -fomit-frame-pointer -flto")
-    set(CMAKE_CXX_FLAGS_RELEASE   "-O3 -fomit-frame-pointer -flto")
-    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -flto")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE    "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -flto")
+    set(CMAKE_C_FLAGS_RELEASE     "-O3 -fomit-frame-pointer ${UAPKI_LTO}")
+    set(CMAKE_CXX_FLAGS_RELEASE   "-O3 -fomit-frame-pointer ${UAPKI_LTO}")
+    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} ${UAPKI_LTO}")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE    "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${UAPKI_LTO}")
 
     set(CMAKE_C_FLAGS_DEBUG       "-Og -g3")
     set(CMAKE_CXX_FLAGS_DEBUG     "-Og -g3")
