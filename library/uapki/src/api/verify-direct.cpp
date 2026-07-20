@@ -25,6 +25,9 @@
 
 using namespace UapkiNS;
 
+// Upper bound on signer count accepted from an envelope.
+static const size_t MAX_SIGNER_INFOS = 128;
+
 extern "C" {
 
 // Adds trusted certificates (DER) to the global get_cerstore() cache.
@@ -86,8 +89,9 @@ static int verify_core(
     *out_signer_count = 0;
     *out_all_valid = 0;
 
-    ByteArray* ba_sig = ba_alloc_from_uint8(sig, sig_len);
-    if (!ba_sig) return RET_UAPKI_GENERAL_ERROR;
+    // RAII: freed on every exit, including a thrown exception mid-verification.
+    SmartBA sba_sig;
+    if (!sba_sig.set(ba_alloc_from_uint8(sig, sig_len))) return RET_UAPKI_GENERAL_ERROR;
 
     Doc::Verify::VerifyOptions opts;
     opts.validationType = (validation_type >= 1)
@@ -121,11 +125,15 @@ static int verify_core(
 
     do {
         if (!verify_sdoc.isInitialized()) { ret = RET_UAPKI_GENERAL_ERROR; break; }
-        ret = verify_sdoc.parse(ba_sig);              if (ret != RET_OK) break;
+        ret = verify_sdoc.parse(sba_sig.get());       if (ret != RET_OK) break;
         ret = verify_sdoc.getContent(content_hasher); if (ret != RET_OK) break;
         ret = verify_sdoc.addCertsToStore();          if (ret != RET_OK) break;
 
         const size_t n = verify_sdoc.sdataParser.getCountSignerInfos();
+        // Guard against a malformed envelope claiming an absurd signer count:
+        // no real CMS has thousands of signers, and resize(n) would otherwise
+        // attempt an unbounded allocation.
+        if (n > MAX_SIGNER_INFOS) { ret = RET_UAPKI_GENERAL_ERROR; break; }
         verify_sdoc.verifiedSignerInfos.resize(n);
         bool all_valid = (n > 0);
 
@@ -177,7 +185,6 @@ static int verify_core(
         *out_all_valid = all_valid ? 1 : 0;
     } while (0);
 
-    ba_free(ba_sig);
     return ret;
 }
 
