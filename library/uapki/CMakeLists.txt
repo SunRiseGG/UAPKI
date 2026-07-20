@@ -71,7 +71,8 @@ set(PATH_COMMON_PKIX ${PATH_PRJ}/../common/pkix)
 
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../out)
 
-aux_source_directory(${PATH_PRJ}/src/api UAPKI_API_SOURCES)
+# only the direct verification API is compiled
+set(UAPKI_API_SOURCES ${PATH_PRJ}/src/api/verify-direct.cpp)
 aux_source_directory(${PATH_PRJ}/src UAPKI_SOURCES)
 aux_source_directory(${PATH_COMMON_PKIX} COMMON_SOURCES)
 aux_source_directory(${PATH_COMMON_JSON} JSON_SOURCES)
