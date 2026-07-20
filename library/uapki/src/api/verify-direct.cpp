@@ -106,16 +106,13 @@ static int verify_core(
     // internally mutex-guarded, so the same borrowed items are safe to share
     // across concurrent verifications.
     Cert::CerStore local_store;
-    {
-        Cert::CerStore* trusted = get_cerstore();
-        size_t n = 0;
-        if (trusted && trusted->getCount(n) == RET_OK) {
-            for (size_t i = 0; i < n; i++) {
-                Cert::CerItem* c = nullptr;
-                if (trusted->getCertByIndex(i, &c) == RET_OK) {
-                    local_store.addReference(c);
-                }
-            }
+    if (Cert::CerStore* trusted = get_cerstore()) {
+        // Snapshot the trusted items under a single lock (getCerItems).
+        // An empty filter accepts every cert. addReference borrows the pointers;
+        // the CerItems stay owned by the global store.
+        Cert::CerStore::FilterListCerts all;
+        for (Cert::CerItem* c : trusted->getCerItems(all)) {
+            local_store.addReference(c);
         }
     }
 
