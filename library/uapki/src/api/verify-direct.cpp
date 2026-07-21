@@ -6,8 +6,11 @@
 // UAPKI_EXPORT does for process()).
 //
 // The logic mirrors verify_p7s from api/verify.cpp but works with ByteArray
-// directly — no parson/JSON/base64. Supports the STRUCT and CHAIN validation
-// levels (offline); FULL (OCSP/CRL) stays behind the JSON path.
+// directly — no parson/JSON/base64. Supports two validation levels (offline);
+// FULL (OCSP/CRL) stays behind the JSON path:
+//   STRUCT — cryptographic signature + content digest only; needs no trusted
+//            certificates, so a missing issuer CA does not fail the check.
+//   CHAIN  — the above plus building and validating the chain to trusted CAs.
 
 #include "content-hasher.h"
 #include "doc-verify.h"
@@ -170,11 +173,22 @@ static int verify_core(
                 for (auto& it : vsi.getCertChainItems()) {
                     it->setValidationType(Cert::ValidationType::NONE);
                 }
-            }
-            vsi.validateStatusCerts();
+                vsi.validateStatusCerts();
 
-            const char* st = vsi.getValidationStatus();
-            if (!st || std::strcmp(st, "TOTAL-VALID") != 0) all_valid = false;
+                const char* st = vsi.getValidationStatus();
+                if (!st || std::strcmp(st, "TOTAL-VALID") != 0) all_valid = false;
+            }
+            else {
+                //  STRUCT: the cryptographic signature and the content digest, and
+                //  nothing else.
+                if (vsi.getStatusSignature() != SignatureVerifyStatus::VALID) {
+                    all_valid = false;
+                }
+                if (verify_sdoc.refContentHasher->isPresent()
+                    && (vsi.getStatusMessageDigest() != DigestVerifyStatus::VALID)) {
+                    all_valid = false;
+                }
+            }
         }
         if (ret != RET_OK) break;
 
