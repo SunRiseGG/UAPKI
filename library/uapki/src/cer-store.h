@@ -152,6 +152,10 @@ public:
         CerItem** cerIssuer,
         bool& isSelfSigned
     );
+    //  Drops every certificate the store owns, so a caller can replace the
+    //  trusted set instead of only adding to it. Borrowed items belong to
+    //  another store and are forgotten here, never freed.
+    void clear (void);
     int load (void);
     int removeCert (
         CerItem* cerSubject,

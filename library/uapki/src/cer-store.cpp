@@ -625,6 +625,12 @@ int CerStore::loadDir (void)
     return RET_OK;
 }
 
+void CerStore::clear (void)
+{
+    lock_guard<mutex> lock(m_Mutex);
+    reset();
+}
+
 void CerStore::reset (void)
 {
     for (auto& it : m_Items) {
