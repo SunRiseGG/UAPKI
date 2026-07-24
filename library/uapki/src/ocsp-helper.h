@@ -70,6 +70,9 @@ namespace Ocsp {
             uint64_t    msThisUpdate;
             uint64_t    msNextUpdate;
             uint64_t    msRevocationTime;
+            //  rfc6960 $4.4.5: every CRL entry extension of rfc5280 $5.3 is
+            //  also carried as a singleExtension, invalidityDate among them.
+            uint64_t    msInvalidityDate;
             CrlReason   revocationReason;
 
             SingleResponseInfo (void)
@@ -77,6 +80,7 @@ namespace Ocsp {
                 , msThisUpdate(0)
                 , msNextUpdate(0)
                 , msRevocationTime(0)
+                , msInvalidityDate(0)
                 , revocationReason(CrlReason::UNDEFINED)
             {}
 

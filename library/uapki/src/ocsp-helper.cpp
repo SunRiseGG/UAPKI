@@ -552,6 +552,11 @@ int OcspHelper::scanSingleResponses (void)
                 DO(Util::enumeratedFromAsn1(revoked_info->revocationReason, &crl_reason));
                 ocsp_item.revocationReason = (UapkiNS::CrlReason)crl_reason;
             }
+            //  Optional, and absent from most responders: when present it says
+            //  when the key became untrustworthy, which can precede the moment
+            //  the CA processed the revocation.
+            (void)ExtensionHelper::getCrlInvalidityDate(
+                resp->singleExtensions, ocsp_item.msInvalidityDate);
             break;
         case CertStatus_PR_unknown:
             ocsp_item.certStatus = UapkiNS::CertStatus::UNKNOWN;
