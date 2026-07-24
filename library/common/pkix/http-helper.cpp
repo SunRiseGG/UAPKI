@@ -56,6 +56,8 @@ struct HTTP_HELPER {
     bool    offlineMode;
     string  proxyUrl;
     string  proxyCredentials;
+    long    connectTimeoutMs;
+    long    totalTimeoutMs;
     mutex   mtx;
     map<string, mutex>
             mtxByUrl;
@@ -63,6 +65,8 @@ struct HTTP_HELPER {
     HTTP_HELPER (void)
         : isInitialized(false)
         , offlineMode(false)
+        , connectTimeoutMs(HttpHelper::CONNECT_TIMEOUT_MS_DEFAULT)
+        , totalTimeoutMs(HttpHelper::TOTAL_TIMEOUT_MS_DEFAULT)
     {}
 
     void reset (void)
@@ -104,6 +108,12 @@ static bool curl_set_url_and_proxy (
     CURLcode rv_ccode = curl_easy_setopt(curl, CURLOPT_URL, uri.c_str());
     if (rv_ccode != CURLE_OK) return false;
 
+    //  Bound every request: an unresponsive CA must not block the caller
+    //  indefinitely.
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, http_helper.connectTimeoutMs);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, http_helper.totalTimeoutMs);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+
     if (!http_helper.proxyUrl.empty()) {
         rv_ccode = curl_easy_setopt(curl, CURLOPT_PROXY, http_helper.proxyUrl.c_str());
         if (rv_ccode != CURLE_OK) return false;
@@ -119,6 +129,15 @@ static bool curl_set_url_and_proxy (
     return true;
 }   //  curl_set_url_and_proxy
 
+
+void HttpHelper::setTimeouts (
+        const long connectTimeoutMs,
+        const long totalTimeoutMs
+)
+{
+    if (connectTimeoutMs > 0) http_helper.connectTimeoutMs = connectTimeoutMs;
+    if (totalTimeoutMs > 0) http_helper.totalTimeoutMs = totalTimeoutMs;
+}
 
 int HttpHelper::init (
         const bool offlineMode,

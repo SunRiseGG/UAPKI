@@ -41,12 +41,23 @@ public:
     static const char* CONTENT_TYPE_OCSP_REQUEST;
     static const char* CONTENT_TYPE_TSP_REQUEST;
 
+    //  Defaults used until setTimeouts() says otherwise.
+    static const long CONNECT_TIMEOUT_MS_DEFAULT = 5000;
+    static const long TOTAL_TIMEOUT_MS_DEFAULT = 15000;
+
     static int init (
         const bool offlineMode,
         const char* proxyUrl,
         const char* proxyCredentials
     );
     static void deinit (void);
+
+    //  Bounds every request. Non-positive values keep the current setting, so a
+    //  caller that does not care can pass 0.
+    static void setTimeouts (
+        const long connectTimeoutMs,
+        const long totalTimeoutMs
+    );
 
     static bool isOfflineMode (void);
     static const std::string& getProxyUrl (void);
