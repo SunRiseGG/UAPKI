@@ -80,6 +80,13 @@ DIRECT_EXPORT int uapki_direct_init(
         config->setValidationByCrl(only_crl != 0);
         config->setInitialized(true);
 
+        //  Create the global CRL store here, on the single-threaded init path.
+        //  It is otherwise first touched inside verify_core, which runs
+        //  concurrently, and the lazy new in global-objects.cpp is unlocked —
+        //  parallel first-use would race. get_config/get_cerstore are already
+        //  warmed above (the latter via add_trusted); this closes the last one.
+        if (!get_crlstore()) return RET_UAPKI_GENERAL_ERROR;
+
         HttpHelper::setTimeouts(connect_timeout_ms, total_timeout_ms);
 
         const int ret = HttpHelper::init(offline != 0, proxy_url, proxy_credentials);
