@@ -418,7 +418,7 @@ static int verify_core(
     const uint8_t* sig, size_t sig_len,
     ContentHasher& content_hasher,
     int validation_type,
-    int* out_signer_count,
+    uint32_t* out_signer_count,
     int* out_verdict)
 {
     *out_signer_count = 0;
@@ -545,7 +545,7 @@ static int verify_core(
         }
         if (ret != RET_OK) break;
 
-        *out_signer_count = (int)n;
+        *out_signer_count = (uint32_t)n;
         *out_verdict = verdict;
     } while (0);
 
@@ -558,7 +558,7 @@ static int verify_entry(
     const uint8_t* data, size_t data_len,
     const char* data_path,
     int validation_type,
-    int* out_signer_count,
+    uint32_t* out_signer_count,
     int* out_verdict)
 {
     *out_signer_count = 0;
@@ -586,7 +586,7 @@ DIRECT_EXPORT int uapki_direct_verify(
     const uint8_t* sig, size_t sig_len,
     const uint8_t* data, size_t data_len,
     int validation_type,
-    int* out_signer_count,
+    uint32_t* out_signer_count,
     int* out_verdict)
 {
     return verify_entry(sig, sig_len, data, data_len, nullptr,
@@ -598,7 +598,7 @@ DIRECT_EXPORT int uapki_direct_verify_file(
     const uint8_t* sig, size_t sig_len,
     const char* data_path,
     int validation_type,
-    int* out_signer_count,
+    uint32_t* out_signer_count,
     int* out_verdict)
 {
     return verify_entry(sig, sig_len, nullptr, 0, data_path,
